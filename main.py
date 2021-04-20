@@ -3,25 +3,38 @@
 
 import raycomputing as rc
 import tkinter as tk
-from math import cos, sin, pi  # , floor, ceil
+
+from PIL import Image
+from math import cos, sin, pi
 from copy import deepcopy
 
+import time
 
-data = {'camera': [0.5, 0.5, 1.5, 0.0000000000001, 0.0000000000001],  # позиц камеры {x,y,z, угол в xOy, угол в xOz}
-        'render_distance': 10,  # глубина отрисовки в метрах (блоках)
+data = {'camera': [0.5, 0.5, 1.5, 0.000000000001 - 0.05 * pi, 0.000000000001 - 0.15 * pi],  # позиц камеры {x,y,z, угол в xOy, угол в xOz}
+        'render_distance': 10,  # глубина отрисовки в метрах (блоках) = min 10, opt 30
         'chunk_info_size': 10,  # количество блоков на одной оси чанка (кубический)
         'reflection_number': 0,  # количество отражений {0 - без отраж, луч сразу берёт цвет соответств блока}
 
         'fov_degrees': 90,  # градусов горизонтальный обзор = default 90
-        'rays_x': 16 * 8,  # лучей по горизонтали = default 160
-        'rays_y': 9 * 8,  # лучей по вертикали = default 90
+        'rays_x': 16 * 5,  # лучей по горизонтали = min 16, opt 160
+        'rays_y': 9 * 5,  # лучей по вертикали = min 9, opt 90
 
         'initial_screen_width': 1280,  # изначальный размер окна
 
         'world_info': {},  # координаты_чанка: чанк ('-1 13 3': chunk_info)
         'skybox': [{'general': ((176, 198, 255, 255), 0, 255, 255, (128, 128, 255))}, 100],
 
-        'UV_size': 16,
+        'texture_pack': 'digger_online_64_8',  # 64х64, 8-бит
+        # 'texture_pack': 'digger_online_64_32',  # 64х64, 32-бит
+        # 'texture_pack': 'minecraft_16_8',  # 16х16, 8-бит
+        # 'texture_pack': 'minecraft_16_32',  # 16х16, 32-бит
+
+        # Результаты теста производительности (rays = 16x9 * 5, dist = 10, повороты камеры = s a s d w w d s a s s a):
+        # minecraft        16pix    32bit    1.05 sec avg render time
+        # minecraft        16pix    8bit     1.08 sec avg render time
+        # digger_online    64pix    8bit     1.27 sec avg render time
+        # digger_online    64pix    32bit    1.41 sec avg render time
+        # Для текстур большого разрешения желательно 8-битное кодирование. Для текстур маленького - 32-битное.
 
         'block': {  # массив материалов блоков, включающих пути на все карты для различных полигонов
             # блок травы (сверху - трава, снизу - земля, по краям - переходный)
@@ -49,6 +62,7 @@ data = {'camera': [0.5, 0.5, 1.5, 0.0000000000001, 0.0000000000001],  # пози
 # Массив пустой, то нет блока. Если нет текстуры, то вместо пути на неё указывается hex-цвет всего полигона.
 # По умолчанию запрашивается материал отдельного полигона блока, если его нет - берётся материал general.
 
+avg_time_ar = []
 
 rays_x_array = []
 rays_y_array = []
@@ -71,6 +85,8 @@ def presetting_settings():
 
     window_scale = (data['initial_screen_width'] // data['rays_x'])\
         if data['rays_x'] <= data['initial_screen_width'] else 1
+
+    data['UV_size'] = Image.open(f"materials/{data['texture_pack']}/info.png").size[0]
 
     data['screen'] = [window_scale, int(window_scale * data['rays_x']), int(window_scale * data['rays_y']),
                       int(data['rays_x']), int(data['rays_y'])]
@@ -176,6 +192,13 @@ def moving(event, speed=0.1, rotation_z=0.05 * pi, rotation_y=0.05 * pi):
         displacement = []
         if event.keycode == 87:  # W
             displacement = [speed, data['camera'][3]]
+
+            global avg_time_ar
+            avg_time = 0
+            for i in avg_time_ar:
+                avg_time += i
+            print(round(avg_time / len(avg_time_ar), 2))
+
         elif event.keycode == 65:  # A
             displacement = [speed, data['camera'][3] + (pi / 2)]
         elif event.keycode == 83:  # S
@@ -196,12 +219,21 @@ def moving(event, speed=0.1, rotation_z=0.05 * pi, rotation_y=0.05 * pi):
 
 # функция создания массива с информацией о всех пикселях
 def raytracing():
+
+    start = time.time()
+
     ray_array = []  # двумерный массив цветов пикселей
     for x_ray in rays_x_array:
         ray_array_y = []
         for y_ray in rays_y_array:
             ray_array_y.append(rc.ray_computing(data, deepcopy(data['camera']), x_ray, y_ray))
         ray_array.append(ray_array_y)
+
+    end = time.time()
+    period = end - start
+    print('FPS:', round(1 / period, 2), '\tFrame computing time:', round(period, 2))
+
+    avg_time_ar.append(round(period, 2))
 
     return ray_array
 
