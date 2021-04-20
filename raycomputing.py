@@ -122,7 +122,15 @@ def ray_computing(data, ray_vector, x_ray, y_ray):
                 uv_pixel = (int(uv_coordinates[0] // (1 / data['UV_size'])),
                             data['UV_size'] - 1 - int(uv_coordinates[1] // (1 / data['UV_size'])))
                 # получаем RGBA пикселя из нужной текстуры
-                rgba = Image.open(f"materials/{color_map}.png").getpixel(uv_pixel)
+                texture = Image.open(f"materials/{data['texture_pack']}/{color_map}.png")
+                # пробуем взять палитру изображения
+                palette = texture.getpalette()
+                # если палитра существует, то берём RGB из восьмибитного формата
+                if palette:
+                    i = texture.getpixel(uv_pixel)
+                    rgba = (palette[3 * i], palette[3 * i + 1], palette[3 * i + 2])
+                else:  # иначе берём RGBA из 32-битного формата
+                    rgba = texture.getpixel(uv_pixel)
             else:
                 # иначе указано общее значение для всего полигона (r, g, b, a)
                 rgba = color_map
