@@ -90,8 +90,6 @@ def ray_computing(data, ray_vector, x_ray, y_ray):
     color_array = []
 
     for i in range(data['reflection_number'] + 1):
-        # rgba = ()
-
         # начинаем проверять пересечения с этой плоскости (свои для каждого направления)
         d_x = floor(ray_vector[0]) if cos(ray_vector[3]) * cos(ray_vector[4]) < 0 else ceil(ray_vector[0])
         d_y = floor(ray_vector[1]) if sin(ray_vector[3]) * cos(ray_vector[4]) < 0 else ceil(ray_vector[1])
